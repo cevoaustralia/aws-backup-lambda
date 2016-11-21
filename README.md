@@ -1,7 +1,9 @@
 aws-backup-lambda
 =================
 
-This project aims to create an AWS Lambda function that can be used to create and manage EBS and RDS snapshots.  The Lambda function takes new backups when scheduled to, and manages the deletion of the old ones based on maintaining a upper threshold of backups.
+A utility AWS lambda function to manage EBS and RDS snapshot backups.
+
+ The Lambda function takes new backups when executed, and manages the deletion of the old ones when the upper limit is reached.
 
 The origin of this project comes from: https://github.com/evannuil/aws-snapshot-tool
 
