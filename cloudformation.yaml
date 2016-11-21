@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: A simple backup process for EC2 and RDS datastores, tag your resources with 'MakeSnapshot' = 'True' (casesensitive) to have snapshots taken and managed
+Resources:
+  LambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "Lambda_execution"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                    - "logs:*"
+                Resource: "arn:aws:logs:*:*:*"
+
+        -
+          PolicyName: "ec2_snapshot_policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                    - "ec2:CreateTags"
+                    - "ec2:UpdateTags"
+                    - "ec2:DescribeTags"
+                    - "ec2:DescribeInstances"
+                    - "ec2:CreateSnapshot"
+                    - "ec2:DescribeSnapshots"
+                    - "ec2:DeleteSnapshot"
+                    - "ec2:DescribeVolumes"
+                Resource: "*"
+        -
+          PolicyName: "rds_snapshot_policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                    - "rds:DescribeDBInstances"
+                    - "rds:DescribeDBSnapshots"
+                    - "rds:ListTagsForResource"
+                    - "rds:DescribeDBSecurityGroups"
+                    - "rds:CreateDBSnapshot"
+                    - "rds:DeleteDBSnapshot"
+                Resource: "*"
+
+  BackupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: backuplambda.lambda_handler
+      Runtime: python2.7
+      Timeout: 300
+      Role: !GetAtt LambdaExecutionRole.Arn
+      CodeUri: 'lambda'
+      Events:
+        DailyBackupEvent:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 day)
+            Input:
+              Fn::Join:
+              - ''
+              - - '{"period_label": "day", "period_format": "%a%H-%M", "keep_count": 14,'
+                - '"ec2_region_name": "'
+                - Ref: AWS::Region
+                - '", '
+                - '"rds_region_name": "'
+                - Ref: AWS::Region
+                - '", '
+                - '"tag_name": "MakeSnapshot", "tag_value": "True" }'
+        WeeklyBackupEvent:
+          Type: Schedule
+          Properties:
+            Schedule: rate(7 days)
+            Input:
+              Fn::Join:
+              - ''
+              - - '{"period_label": "week", "period_format": "week-%U", "keep_count": 12,'
+                - '"ec2_region_name": "'
+                - Ref: AWS::Region
+                - '", '
+                - '"rds_region_name": "'
+                - Ref: AWS::Region
+                - '", '
+                - '"tag_name": "MakeSnapshot", "tag_value": "True" }'
