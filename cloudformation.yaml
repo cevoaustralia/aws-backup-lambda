@@ -60,7 +60,10 @@ Resources:
                     - "rds:CreateDBSnapshot"
                     - "rds:DeleteDBSnapshot"
                 Resource: "*"
-
+  SuccessSNSTopic:
+    Type: "AWS::SNS::Topic"
+  ErrorSNSTopic:
+    Type: "AWS::SNS::Topic"
   BackupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -78,6 +81,12 @@ Resources:
               Fn::Join:
               - ''
               - - '{"period_label": "day", "period_format": "%a%H-%M", "keep_count": 14,'
+                - '"arn": "'
+                - Ref: SuccessSNSTopic
+                - '", '
+                - '"error_arn": "'
+                - Ref: ErrorSNSTopic
+                - '", '
                 - '"ec2_region_name": "'
                 - Ref: AWS::Region
                 - '", '
@@ -93,6 +102,12 @@ Resources:
               Fn::Join:
               - ''
               - - '{"period_label": "week", "period_format": "week-%U", "keep_count": 12,'
+                - '"arn": "'
+                - Ref: SuccessSNSTopic
+                - '", '
+                - '"error_arn": "'
+                - Ref: ErrorSNSTopic
+                - '", '
                 - '"ec2_region_name": "'
                 - Ref: AWS::Region
                 - '", '
