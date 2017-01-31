@@ -1,6 +1,28 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: A simple backup process for EC2 and RDS datastores, tag your resources with 'MakeSnapshot' = 'True' (casesensitive) to have snapshots taken and managed
+Parameters:
+    SuccessSNSTopicOption:
+        Description: Supply an either '' (disabled), 'CreateSNS' (build new SNS for this stack), '<sns_arn>' (connect to existing Topic).
+        Default: ""
+        Type: String
+    ErrorSNSTopicOption:
+        Description: Supply an either '' (disabled), 'CreateSNS' (build new SNS for this stack), '<sns_arn>' (connect to existing Topic).
+        Default: ""
+        Type: String
+
+Conditions:
+    EnableSuccessSNSTopic: !Not [!Equals [!Ref SuccessSNSTopicOption, ""]] #
+    EnableErrorSNSTopic:   !Not [!Equals [!Ref ErrorSNSTopicOption, ""]]
+
+    CreateSuccessSNSTopic: !And                     # We only need to create the Success SNS when it is enabled and not supplied
+            - Condition: EnableSuccessSNSTopic
+            - !Equals [!Ref SuccessSNSTopicOption, "CreateSNS"]
+
+    CreateErrorSNSTopic:   !And                     # We only need to create the Error SNS when it is enabled and not supplied
+            - Condition: EnableErrorSNSTopic
+            - !Equals [!Ref ErrorSNSTopicOption,   "CreateSNS"]
+
 Resources:
   LambdaExecutionRole:
     Type: "AWS::IAM::Role"
@@ -62,8 +84,10 @@ Resources:
                 Resource: "*"
   SuccessSNSTopic:
     Type: "AWS::SNS::Topic"
+    Condition : CreateSuccessSNSTopic
   ErrorSNSTopic:
     Type: "AWS::SNS::Topic"
+    Condition : CreateErrorSNSTopic
   BackupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -82,10 +106,10 @@ Resources:
               - ''
               - - '{"period_label": "day", "period_format": "%a%H-%M", "keep_count": 14,'
                 - '"arn": "'
-                - Ref: SuccessSNSTopic
+                - !If [EnableSuccessSNSTopic, !If [ CreateSuccessSNSTopic, Ref: SuccessSNSTopic, Ref: SuccessSNSTopicOption], '']
                 - '", '
                 - '"error_arn": "'
-                - Ref: ErrorSNSTopic
+                - !If [EnableErrorSNSTopic, !If [ CreateErrorSNSTopic, Ref: ErrorSNSTopic, Ref: ErrorSNSTopicOption], '']
                 - '", '
                 - '"ec2_region_name": "'
                 - Ref: AWS::Region
@@ -103,10 +127,10 @@ Resources:
               - ''
               - - '{"period_label": "week", "period_format": "week-%U", "keep_count": 12,'
                 - '"arn": "'
-                - Ref: SuccessSNSTopic
+                - !If [EnableSuccessSNSTopic, !If [ CreateSuccessSNSTopic, Ref: SuccessSNSTopic, Ref: SuccessSNSTopicOption], '']
                 - '", '
                 - '"error_arn": "'
-                - Ref: ErrorSNSTopic
+                - !If [EnableErrorSNSTopic, !If [ CreateErrorSNSTopic, Ref: ErrorSNSTopic, Ref: ErrorSNSTopicOption], '']
                 - '", '
                 - '"ec2_region_name": "'
                 - Ref: AWS::Region
