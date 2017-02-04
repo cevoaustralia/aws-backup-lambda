@@ -16,6 +16,6 @@ install:
   - "pip install -r requirements.txt"
   - "pip install -r development.txt"
 env:
-  - PYTHONPATH=backuplambda
+  - PYTHONPATH=lambda
 # command to run tests
 script: nosetests
