@@ -140,6 +140,13 @@ class BaseBackupManager(object):
         self.message += "\nTotal snapshots errors: " + str(count_errors)
         self.message += "\nTotal snapshots deleted: " + str(total_deletes) + "\n"
 
+        return {
+            "total_resources": count_total,
+            "total_creates": total_creates,
+            "total_errors": count_errors,
+            "total_deletes": total_deletes,
+        }
+
     def delete_snapshot(self, snapshot):
         pass
 
@@ -418,8 +425,9 @@ def lambda_handler(event, context={}):
                                       date_suffix=date_suffix,
                                       keep_count=keep_count)
 
-        backup_mgr.process_backup()
+        metrics = backup_mgr.process_backup()
 
+        result["metrics"] = metrics
         result["ec2_backup_result"] = backup_mgr.message
         print('\n' + backup_mgr.message + '\n')
 
@@ -437,8 +445,9 @@ def lambda_handler(event, context={}):
                                       date_suffix=date_suffix,
                                       keep_count=keep_count)
 
-        backup_mgr.process_backup()
+        metrics = backup_mgr.process_backup()
 
+        result["metrics"] = metrics
         result["rds_backup_result"] = backup_mgr.message
         print('\n' + backup_mgr.message + '\n')
 
