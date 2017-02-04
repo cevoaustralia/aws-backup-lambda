@@ -110,11 +110,11 @@ class BaseBackupManager(object):
                     else:
                         print('  Skipping other backup schedule: ' + sndesc)
 
-                self.message += "\n    Current backups in rotation (keeping {})\n".format(self.keep_count)
+                self.message += "\n    Current backups in rotation (keeping {0})\n".format(self.keep_count)
                 self.message += "    ---------------------------\n"
 
                 for snap in deletelist:
-                    self.message += "    {} - {}\n".format(self.resolve_snapshot_name(snap),
+                    self.message += "    {0} - {1}\n".format(self.resolve_snapshot_name(snap),
                                                            self.resolve_snapshot_time(snap))
                 self.message += "    ---------------------------\n"
 
@@ -376,7 +376,7 @@ class RDSBackupManager(BaseBackupManager):
         region = self.conn.meta.region_name
         account_number = self.resolve_account_number()
 
-        return "arn:aws:rds:{}:{}:db:{}".format(region, account_number, instance_id)
+        return "arn:aws:rds:{0}:{1}:db:{2}".format(region, account_number, instance_id)
 
 
 def lambda_handler(event, context={}):
