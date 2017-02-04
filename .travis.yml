@@ -18,4 +18,4 @@ install:
 env:
   - PYTHONPATH=backuplambda
 # command to run tests
-script: nose
+script: nosetests
