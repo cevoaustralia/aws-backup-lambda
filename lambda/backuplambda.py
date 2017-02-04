@@ -427,7 +427,7 @@ def lambda_handler(event, context={}):
             sns_boto.publish(error_sns_arn, 'Error in processing volumes: ' + backup_mgr.errmsg, 'Error with AWS Snapshot')
 
         if sns_arn:
-            sns_boto.publish(sns_arn, backup_mgr.message, 'Finished AWS EC2 snapshotting')
+            sns_boto.publish(TopicArn=sns_arn, Message=backup_mgr.message, Subject='Finished AWS EC2 snapshotting')
 
     if rds_region_name:
         backup_mgr = RDSBackupManager(rds_region_name=rds_region_name,
@@ -446,6 +446,6 @@ def lambda_handler(event, context={}):
             sns_boto.publish(error_sns_arn, 'Error in processing RDS: ' + backup_mgr.errmsg, 'Error with AWS Snapshot')
 
         if sns_arn:
-            sns_boto.publish(sns_arn, backup_mgr.message, 'Finished AWS RDS snapshotting')
+            sns_boto.publish(TopicArn=sns_arn, Message=backup_mgr.message, Subject='Finished AWS RDS snapshotting')
 
     return json.dumps(result, indent=2)
