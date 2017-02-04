@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import boto3
 from datetime import datetime
-import sys
+import sys, traceback
 import logging
 import json
 import pytz
@@ -41,6 +41,9 @@ class BaseBackupManager(object):
         pass
 
     def resolve_backupable_id(self, resource):
+        pass
+
+    def resolve_snapshot_name(self, resource):
         pass
 
     def resolve_snapshot_time(self, resource):
@@ -86,9 +89,12 @@ class BaseBackupManager(object):
                     self.snapshot_resource(resource=backup_item, description=description, tags=tags_volume)
                     self.message += '    New Snapshot created with description: %s and tags: %s\n' % (description, str(tags_volume))
                     total_creates += 1
-                except Exception, e:
+                except Exception as e:
                     print ("Unexpected error:", sys.exc_info()[0])
                     print (e)
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                              limit=2, file=sys.stdout)
                     pass
 
                 snapshots = self.list_snapshots_for_resource(resource=backup_item)
@@ -123,6 +129,9 @@ class BaseBackupManager(object):
             except Exception as ex:
                 print("Unexpected error:", sys.exc_info()[0])
                 print(ex)
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                          limit=2, file=sys.stdout)
                 logging.error('Error in processing volume with id: ' + backup_id)
                 self.errmsg += 'Error in processing volume with id: ' + backup_id
                 count_errors += 1
@@ -409,13 +418,6 @@ def lambda_handler(event, context={}):
 
     date_suffix = datetime.today().strftime(period_format)
 
-    sns_boto = None
-
-    # Connect to SNS
-    if sns_arn or error_sns_arn:
-        print('Connecting to SNS')
-        sns_boto = boto3.client('sns', region_name=ec2_region_name)
-
     result = event
     if ec2_region_name:
         backup_mgr = EC2BackupManager(ec2_region_name=ec2_region_name,
@@ -430,6 +432,13 @@ def lambda_handler(event, context={}):
         result["metrics"] = metrics
         result["ec2_backup_result"] = backup_mgr.message
         print('\n' + backup_mgr.message + '\n')
+
+        sns_boto = None
+
+        # Connect to SNS
+        if sns_arn or error_sns_arn:
+            print('Connecting to SNS')
+            sns_boto = boto3.client('sns', region_name=ec2_region_name)
 
         if error_sns_arn and backup_mgr.errmsg:
             sns_boto.publish(error_sns_arn, 'Error in processing volumes: ' + backup_mgr.errmsg, 'Error with AWS Snapshot')
@@ -450,6 +459,13 @@ def lambda_handler(event, context={}):
         result["metrics"] = metrics
         result["rds_backup_result"] = backup_mgr.message
         print('\n' + backup_mgr.message + '\n')
+
+        sns_boto = None
+
+        # Connect to SNS
+        if sns_arn or error_sns_arn:
+            print('Connecting to SNS')
+            sns_boto = boto3.client('sns', region_name=rds_region_name)
 
         if error_sns_arn and backup_mgr.errmsg:
             sns_boto.publish(error_sns_arn, 'Error in processing RDS: ' + backup_mgr.errmsg, 'Error with AWS Snapshot')
