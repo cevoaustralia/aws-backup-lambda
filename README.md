@@ -1,6 +1,8 @@
 aws-backup-lambda
 =================
 
+[![Build Status](https://travis-ci.org/cevoaustralia/aws-backup-lambda.svg?branch=master)](https://travis-ci.org/cevoaustralia/aws-backup-lambda)
+
 A utility AWS lambda function to manage EBS and RDS snapshot backups.
 
  The Lambda function takes new backups when executed, and manages the deletion of the old ones when the upper limit is reached.
