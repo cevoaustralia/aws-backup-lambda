@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import boto3
 from datetime import datetime
-import sys
+import sys, traceback
 import logging
 import json
 import pytz
@@ -41,6 +41,9 @@ class BaseBackupManager(object):
         pass
 
     def resolve_backupable_id(self, resource):
+        pass
+
+    def resolve_snapshot_name(self, resource):
         pass
 
     def resolve_snapshot_time(self, resource):
@@ -86,9 +89,12 @@ class BaseBackupManager(object):
                     self.snapshot_resource(resource=backup_item, description=description, tags=tags_volume)
                     self.message += '    New Snapshot created with description: %s and tags: %s\n' % (description, str(tags_volume))
                     total_creates += 1
-                except Exception, e:
+                except Exception as e:
                     print ("Unexpected error:", sys.exc_info()[0])
                     print (e)
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                              limit=2, file=sys.stdout)
                     pass
 
                 snapshots = self.list_snapshots_for_resource(resource=backup_item)
@@ -104,11 +110,11 @@ class BaseBackupManager(object):
                     else:
                         print('  Skipping other backup schedule: ' + sndesc)
 
-                self.message += "\n    Current backups in rotation (keeping {})\n".format(self.keep_count)
+                self.message += "\n    Current backups in rotation (keeping {0})\n".format(self.keep_count)
                 self.message += "    ---------------------------\n"
 
                 for snap in deletelist:
-                    self.message += "    {} - {}\n".format(self.resolve_snapshot_name(snap),
+                    self.message += "    {0} - {1}\n".format(self.resolve_snapshot_name(snap),
                                                            self.resolve_snapshot_time(snap))
                 self.message += "    ---------------------------\n"
 
@@ -123,6 +129,9 @@ class BaseBackupManager(object):
             except Exception as ex:
                 print("Unexpected error:", sys.exc_info()[0])
                 print(ex)
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                          limit=2, file=sys.stdout)
                 logging.error('Error in processing volume with id: ' + backup_id)
                 self.errmsg += 'Error in processing volume with id: ' + backup_id
                 count_errors += 1
@@ -139,6 +148,13 @@ class BaseBackupManager(object):
         self.message += "\nTotal snapshots created: " + str(total_creates)
         self.message += "\nTotal snapshots errors: " + str(count_errors)
         self.message += "\nTotal snapshots deleted: " + str(total_deletes) + "\n"
+
+        return {
+            "total_resources": count_total,
+            "total_creates": total_creates,
+            "total_errors": count_errors,
+            "total_deletes": total_deletes,
+        }
 
     def delete_snapshot(self, snapshot):
         pass
@@ -360,7 +376,7 @@ class RDSBackupManager(BaseBackupManager):
         region = self.conn.meta.region_name
         account_number = self.resolve_account_number()
 
-        return "arn:aws:rds:{}:{}:db:{}".format(region, account_number, instance_id)
+        return "arn:aws:rds:{0}:{1}:db:{2}".format(region, account_number, instance_id)
 
 
 def lambda_handler(event, context={}):
@@ -402,13 +418,6 @@ def lambda_handler(event, context={}):
 
     date_suffix = datetime.today().strftime(period_format)
 
-    sns_boto = None
-
-    # Connect to SNS
-    if sns_arn or error_sns_arn:
-        print('Connecting to SNS')
-        sns_boto = boto3.client('sns', region_name=ec2_region_name)
-
     result = event
     if ec2_region_name:
         backup_mgr = EC2BackupManager(ec2_region_name=ec2_region_name,
@@ -418,16 +427,24 @@ def lambda_handler(event, context={}):
                                       date_suffix=date_suffix,
                                       keep_count=keep_count)
 
-        backup_mgr.process_backup()
+        metrics = backup_mgr.process_backup()
 
+        result["metrics"] = metrics
         result["ec2_backup_result"] = backup_mgr.message
         print('\n' + backup_mgr.message + '\n')
+
+        sns_boto = None
+
+        # Connect to SNS
+        if sns_arn or error_sns_arn:
+            print('Connecting to SNS')
+            sns_boto = boto3.client('sns', region_name=ec2_region_name)
 
         if error_sns_arn and backup_mgr.errmsg:
             sns_boto.publish(error_sns_arn, 'Error in processing volumes: ' + backup_mgr.errmsg, 'Error with AWS Snapshot')
 
         if sns_arn:
-            sns_boto.publish(sns_arn, backup_mgr.message, 'Finished AWS EC2 snapshotting')
+            sns_boto.publish(TopicArn=sns_arn, Message=backup_mgr.message, Subject='Finished AWS EC2 snapshotting')
 
     if rds_region_name:
         backup_mgr = RDSBackupManager(rds_region_name=rds_region_name,
@@ -437,15 +454,23 @@ def lambda_handler(event, context={}):
                                       date_suffix=date_suffix,
                                       keep_count=keep_count)
 
-        backup_mgr.process_backup()
+        metrics = backup_mgr.process_backup()
 
+        result["metrics"] = metrics
         result["rds_backup_result"] = backup_mgr.message
         print('\n' + backup_mgr.message + '\n')
+
+        sns_boto = None
+
+        # Connect to SNS
+        if sns_arn or error_sns_arn:
+            print('Connecting to SNS')
+            sns_boto = boto3.client('sns', region_name=rds_region_name)
 
         if error_sns_arn and backup_mgr.errmsg:
             sns_boto.publish(error_sns_arn, 'Error in processing RDS: ' + backup_mgr.errmsg, 'Error with AWS Snapshot')
 
         if sns_arn:
-            sns_boto.publish(sns_arn, backup_mgr.message, 'Finished AWS RDS snapshotting')
+            sns_boto.publish(TopicArn=sns_arn, Message=backup_mgr.message, Subject='Finished AWS RDS snapshotting')
 
     return json.dumps(result, indent=2)
