@@ -49,7 +49,16 @@ Resources:
                 Action:
                     - "logs:*"
                 Resource: "arn:aws:logs:*:*:*"
-
+        -
+          PolicyName: "sns_publish_policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                    - "sns:Publish"
+                Resource: "*"
         -
           PolicyName: "ec2_snapshot_policy"
           PolicyDocument:
