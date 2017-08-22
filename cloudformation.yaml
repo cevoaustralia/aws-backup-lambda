@@ -109,32 +109,11 @@ Resources:
         DailyBackupEvent:
           Type: Schedule
           Properties:
-            Schedule: rate(1 day)
+            Schedule: rate(6 hours)
             Input:
               Fn::Join:
               - ''
               - - '{"period_label": "day", "period_format": "%a%H-%M", "keep_count": 14,'
-                - '"arn": "'
-                - !If [EnableSuccessSNSTopic, !If [ CreateSuccessSNSTopic, Ref: SuccessSNSTopic, Ref: SuccessSNSTopicOption], '']
-                - '", '
-                - '"error_arn": "'
-                - !If [EnableErrorSNSTopic, !If [ CreateErrorSNSTopic, Ref: ErrorSNSTopic, Ref: ErrorSNSTopicOption], '']
-                - '", '
-                - '"ec2_region_name": "'
-                - Ref: AWS::Region
-                - '", '
-                - '"rds_region_name": "'
-                - Ref: AWS::Region
-                - '", '
-                - '"tag_name": "MakeSnapshot", "tag_value": "True" }'
-        WeeklyBackupEvent:
-          Type: Schedule
-          Properties:
-            Schedule: rate(7 days)
-            Input:
-              Fn::Join:
-              - ''
-              - - '{"period_label": "week", "period_format": "week-%U", "keep_count": 12,'
                 - '"arn": "'
                 - !If [EnableSuccessSNSTopic, !If [ CreateSuccessSNSTopic, Ref: SuccessSNSTopic, Ref: SuccessSNSTopicOption], '']
                 - '", '
