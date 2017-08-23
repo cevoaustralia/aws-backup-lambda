@@ -358,7 +358,7 @@ class RDSBackupManager(BaseBackupManager):
         return resource.get('SnapshotCreateTime', now)
 
     def delete_snapshot(self, snapshot):
-        if 'DBClusterIdentifier' in resource:
+        if 'DBClusterIdentifier' in snapshot:
             self.conn.delete_db_cluster_snapshot(DBClusterSnapshotIdentifier=snapshot["DBClusterSnapshotIdentifier"])
         else:
             self.conn.delete_db_snapshot(DBSnapshotIdentifier=snapshot["DBSnapshotIdentifier"])
