@@ -1,16 +1,14 @@
-import unittest
 import boto3
 import json
-
-from moto import mock_ec2, mock_sns
+import unittest
 from backuplambda import *
+from moto import mock_ec2, mock_sns
 
 
 def add_volume(tag_name, tag_value, region_name):
-
     ec2_boto = boto3.client('ec2', region_name=region_name)
 
-    ec2_boto.create_volume(Size=200, AvailabilityZone=region_name+"a")
+    ec2_boto.create_volume(Size=200, AvailabilityZone=region_name + "a")
 
     vols = ec2_boto.describe_volumes()
 
@@ -22,17 +20,14 @@ def add_volume(tag_name, tag_value, region_name):
 
 
 def add_volume_snapshot(resource_id, description, region_name):
-
     ec2_boto = boto3.client('ec2', region_name=region_name)
     current_snap = ec2_boto.create_snapshot(VolumeId=resource_id,
                                             Description=description)
 
 
 class EC2BackupManagerTest(unittest.TestCase):
-
     @mock_ec2
     def test_resolve_resource_bytag(self):
-
         add_volume("Snapshot", "True", "ap-southeast-1")
         add_volume("Name", "Anotherone", "ap-southeast-1")
 
@@ -49,11 +44,9 @@ class EC2BackupManagerTest(unittest.TestCase):
 
 
 class LambdaHandlerTest(unittest.TestCase):
-
     @mock_ec2
     @mock_sns
     def test_ec2_one_volume(self):
-
         region_name = "ap-southeast-2"
 
         add_volume("MakeSnapshot", "True", region_name)
