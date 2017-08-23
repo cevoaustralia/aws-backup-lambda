@@ -78,7 +78,7 @@ class BaseBackupManager(object):
             }
 
             try:
-                tags_volume = self.get_resource_tags(backup_item["DBInstanceIdentifier"])
+                tags_volume = self.get_resource_tags(backup_item)
                 description = '%(period)s_snapshot %(item_id)s_%(period)s_%(date_suffix)s by snapshot script at %(date)s' % {
                     'period': self.period,
                     'item_id': backup_id,
@@ -184,7 +184,8 @@ class EC2BackupManager(BaseBackupManager):
     def lookup_period_prefix(self):
         return self.period + "_snapshot"
 
-    def get_resource_tags(self, resource_id):
+    def get_resource_tags(self, resource):
+        resource_id = self.resolve_backupable_id(resource)
         resource_tags = {}
         if resource_id:
             tags = self.conn.describe_tags(Filters=[{"Name": "resource-id",
@@ -273,7 +274,8 @@ class RDSBackupManager(BaseBackupManager):
     def lookup_period_prefix(self):
         return self.period
 
-    def get_resource_tags(self, resource_id):
+    def get_resource_tags(self, resource):
+        resource_id = resource.get("DBInstanceIdentifier", "DBClusterIdentifier")
         resource_tags = {}
         if resource_id:
             arn = self.build_arn_for_id(resource_id)
@@ -456,8 +458,8 @@ def lambda_handler(event, context={}):
             sns_boto = boto3.client('sns', region_name=ec2_region_name)
 
         if error_sns_arn and backup_mgr.errmsg:
-            sns_boto.publish(error_sns_arn, 'Error in processing volumes: ' + backup_mgr.errmsg,
-                             'Error with AWS Snapshot')
+            sns_boto.publish(TopicArn=error_sns_arn, Message='Error in processing volumes: ' + backup_mgr.errmsg,
+                             Subject='Error with AWS Snapshot')
 
         if sns_arn:
             sns_boto.publish(TopicArn=sns_arn, Message=backup_mgr.message, Subject='Finished AWS EC2 snapshotting')
@@ -484,7 +486,8 @@ def lambda_handler(event, context={}):
             sns_boto = boto3.client('sns', region_name=rds_region_name)
 
         if error_sns_arn and backup_mgr.errmsg:
-            sns_boto.publish(TopicArn=error_sns_arn, Message='Error in processing RDS: ' + backup_mgr.errmsg, Subject='Error with AWS Snapshot')
+            sns_boto.publish(TopicArn=error_sns_arn, Message='Error in processing RDS: ' + backup_mgr.errmsg,
+                             Subject='Error with AWS Snapshot')
 
         if sns_arn:
             sns_boto.publish(TopicArn=sns_arn, Message=backup_mgr.message, Subject='Finished AWS RDS snapshotting')
