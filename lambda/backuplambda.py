@@ -484,7 +484,7 @@ def lambda_handler(event, context={}):
             sns_boto = boto3.client('sns', region_name=rds_region_name)
 
         if error_sns_arn and backup_mgr.errmsg:
-            sns_boto.publish(error_sns_arn, 'Error in processing RDS: ' + backup_mgr.errmsg, 'Error with AWS Snapshot')
+            sns_boto.publish(TopicArn=error_sns_arn, Message='Error in processing RDS: ' + backup_mgr.errmsg, Subject='Error with AWS Snapshot')
 
         if sns_arn:
             sns_boto.publish(TopicArn=sns_arn, Message=backup_mgr.message, Subject='Finished AWS RDS snapshotting')
