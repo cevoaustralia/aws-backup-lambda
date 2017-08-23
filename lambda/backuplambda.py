@@ -78,7 +78,7 @@ class BaseBackupManager(object):
             }
 
             try:
-                tags_volume = self.get_resource_tags(backup_id)
+                tags_volume = self.get_resource_tags(backup_item["DBInstanceIdentifier"])
                 description = '%(period)s_snapshot %(item_id)s_%(period)s_%(date_suffix)s by snapshot script at %(date)s' % {
                     'period': self.period,
                     'item_id': backup_id,
