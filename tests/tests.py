@@ -2,6 +2,8 @@ import unittest
 import boto3
 import json
 
+from mock import MagicMock, call, ANY
+
 from moto import mock_ec2, mock_sns
 from backuplambda import *
 
@@ -46,6 +48,57 @@ class EC2BackupManagerTest(unittest.TestCase):
         volumes = mgr.get_backable_resources()
 
         assert len(volumes) == 1
+
+
+class RDSBackupManagerTest(unittest.TestCase):
+
+    def test_snapshot_resource_for_standard(self):
+
+        mgr = RDSBackupManager(rds_region_name="ap-southeast-1",
+                               period="day",
+                               tag_name="Snapshot",
+                               tag_value="True",
+                               date_suffix="dd",
+                               keep_count="2")
+
+        mgr.conn = MagicMock()
+
+        resource = {"DBInstanceIdentifier": "db-1234"}
+
+        description = ""
+        tags = {"value1": "value2"}
+
+        mgr.snapshot_resource(resource, description, tags)
+
+        self.assertEqual(mgr.conn.mock_calls, [
+            call.create_db_snapshot(DBInstanceIdentifier='db-1234',
+                                    DBSnapshotIdentifier=ANY,
+                                    Tags=[{'Value': 'value2', 'Key': 'value1'}])
+        ])
+
+    def test_snapshot_resource_for_cluster(self):
+
+        mgr = RDSBackupManager(rds_region_name="ap-southeast-1",
+                               period="day",
+                               tag_name="Snapshot",
+                               tag_value="True",
+                               date_suffix="dd",
+                               keep_count="2")
+
+        mgr.conn = MagicMock()
+
+        resource = {"DBInstanceIdentifier": "db-1234", "DBClusterIdentifier": "cluster-5678"}
+
+        description = ""
+        tags = {"value1": "value2"}
+
+        mgr.snapshot_resource(resource, description, tags)
+
+        self.assertEqual(mgr.conn.mock_calls, [
+            call.create_db_cluster_snapshot(DBClusterIdentifier='db-1234',
+                                            DBClusterSnapshotIdentifier=ANY,
+                                            Tags=[{'Value': 'value2', 'Key': 'value1'}])
+        ])
 
 
 class LambdaHandlerTest(unittest.TestCase):

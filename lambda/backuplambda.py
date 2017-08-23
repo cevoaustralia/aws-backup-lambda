@@ -324,7 +324,7 @@ class RDSBackupManager(BaseBackupManager):
         date = datetime.today().strftime('%d-%m-%Y-%H-%M-%S')
         snapshot_id = self.period+'-'+self.resolve_backupable_id(resource)+"-"+date+"-"+self.date_suffix
 
-        if is_cluster(resource):
+        if self.is_cluster(resource):
             current_snap = self.conn.create_db_cluster_snapshot(
                     DBClusterIdentifier=self.resolve_backupable_id(resource),
                     DBClusterSnapshotIdentifier=snapshot_id,
@@ -336,10 +336,7 @@ class RDSBackupManager(BaseBackupManager):
                     Tags=aws_tagset)
 
     def is_cluster(self, resource):
-        try:
-            return resource['DBClusterIdentifier'] is not None
-        except:
-            return False
+        return 'DBClusterIdentifier' in resource
 
     def list_snapshots_for_resource(self, resource):
         snapshots = self.conn.describe_db_snapshots(DBInstanceIdentifier=self.resolve_backupable_id(resource),
