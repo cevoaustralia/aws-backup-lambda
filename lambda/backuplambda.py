@@ -123,7 +123,8 @@ class BaseBackupManager(object):
 
                 for i in range(delta):
                     self.message += '    Deleting snapshot ' + self.resolve_snapshot_name(deletelist[i]) + '\n'
-                    self.delete_snapshot(deletelist[i])
+                    self.delete_snapshot(resource=backup_item,
+                                         snapshot=deletelist[i])
                     total_deletes += 1
                 # time.sleep(3)
             except Exception as ex:
@@ -156,7 +157,7 @@ class BaseBackupManager(object):
             "total_deletes": total_deletes,
         }
 
-    def delete_snapshot(self, snapshot):
+    def delete_snapshot(self, resource, snapshot):
         pass
 
 
@@ -242,7 +243,7 @@ class EC2BackupManager(BaseBackupManager):
     def resolve_snapshot_time(self, resource):
         return resource['StartTime']
 
-    def delete_snapshot(self, snapshot):
+    def delete_snapshot(self, resource, snapshot):
         self.conn.delete_snapshot(SnapshotId=snapshot["SnapshotId"])
 
 
@@ -324,27 +325,58 @@ class RDSBackupManager(BaseBackupManager):
         date = datetime.today().strftime('%d-%m-%Y-%H-%M-%S')
         snapshot_id = self.period+'-'+self.resolve_backupable_id(resource)+"-"+date+"-"+self.date_suffix
 
-        current_snap = self.conn.create_db_snapshot(DBInstanceIdentifier=self.resolve_backupable_id(resource),
-                                                    DBSnapshotIdentifier=snapshot_id,
-                                                    Tags=aws_tagset)
+        if self.is_cluster(resource):
+            current_snap = self.conn.create_db_cluster_snapshot(
+                    DBClusterIdentifier=self.resolve_backupable_id(resource),
+                    DBClusterSnapshotIdentifier=snapshot_id,
+                    Tags=aws_tagset)
+        else:
+            current_snap = self.conn.create_db_snapshot(
+                    DBInstanceIdentifier=self.resolve_backupable_id(resource),
+                    DBSnapshotIdentifier=snapshot_id,
+                    Tags=aws_tagset)
+
+    def is_cluster(self, resource):
+        return 'DBClusterIdentifier' in resource or 'DBClusterSnapshotIdentifier' in resource
 
     def list_snapshots_for_resource(self, resource):
-        snapshots = self.conn.describe_db_snapshots(DBInstanceIdentifier=self.resolve_backupable_id(resource),
-                                                    SnapshotType='manual')
+
+        if self.is_cluster(resource):
+            snapshots = self.conn.describe_db_cluster_snapshots(DBClusterIdentifier=self.resolve_backupable_id(resource),
+                                                                SnapshotType='manual')
+        else:
+            snapshots = self.conn.describe_db_snapshots(DBInstanceIdentifier=self.resolve_backupable_id(resource),
+                                                        SnapshotType='manual')
         return snapshots['DBSnapshots']
 
     def resolve_backupable_id(self, resource):
+
+        if self.is_cluster(resource):
+            return resource["DBClusterIdentifier"]
+
         return resource["DBInstanceIdentifier"]
 
     def resolve_snapshot_name(self, resource):
+
+        if self.is_cluster(resource):
+            return resource['DBClusterSnapshotIdentifier']
+
         return resource['DBSnapshotIdentifier']
 
     def resolve_snapshot_time(self, resource):
         now = datetime.utcnow()
         return resource.get('SnapshotCreateTime', now)
 
-    def delete_snapshot(self, snapshot):
-        self.conn.delete_db_snapshot(DBSnapshotIdentifier=snapshot["DBSnapshotIdentifier"])
+    def delete_snapshot(self, resource, snapshot):
+
+        if self.is_cluster(resource):
+            self.conn.delete_db_cluster_snapshot(
+                DBClusterSnapshotIdentifier=snapshot['DBClusterSnapshotIdentifier']
+            )
+        else:
+            self.conn.delete_db_snapshot(
+                DBSnapshotIdentifier=snapshot["DBSnapshotIdentifier"]
+            )
 
     def db_has_tag(self, db_instance):
         arn = self.build_arn(db_instance)
