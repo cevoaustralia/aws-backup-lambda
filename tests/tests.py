@@ -43,7 +43,7 @@ class EC2BackupManagerTest(unittest.TestCase):
                                tag_name="Snapshot",
                                tag_value="True",
                                date_suffix="dd",
-                               keep_count="2")
+                               keep_count=2)
 
         volumes = mgr.get_backable_resources()
 
@@ -51,6 +51,116 @@ class EC2BackupManagerTest(unittest.TestCase):
 
 
 class RDSBackupManagerTest(unittest.TestCase):
+
+    def test_process_backup_no_instances(self):
+
+        mgr = RDSBackupManager(rds_region_name="ap-southeast-1",
+                               period="day",
+                               tag_name="Snapshot",
+                               tag_value="True",
+                               date_suffix="dd",
+                               keep_count=2)
+
+        mgr.conn = MagicMock()
+        mgr.conn.describe_db_instances = MagicMock(return_value={"DBInstances": []})
+
+        result = mgr.process_backup()
+
+        self.assertEqual(mgr.conn.mock_calls, [
+            call.describe_db_instances()
+        ])
+
+        self.assertEqual({'total_errors': 0,
+                          'total_creates': 0,
+                          'total_deletes': 0,
+                          'total_resources': 0},
+                         result)
+
+    def test_process_backup_single_instance(self):
+
+        mgr = RDSBackupManager(rds_region_name="ap-southeast-1",
+                               period="day",
+                               tag_name="Snapshot",
+                               tag_value="True",
+                               date_suffix="dd",
+                               keep_count=2)
+
+        instance = {'DBInstanceIdentifier': "db-id1234"}
+        list_tags = {"TagList": [{"Key": "Snapshot", "Value": "True"}]}
+
+        mock_sg = MagicMock()
+        mock_db_snapshots = {'DBSnapshots': []}
+
+        mgr.conn = MagicMock()
+        mgr.conn.describe_db_instances = MagicMock(return_value={"DBInstances": [instance]})
+        mgr.conn.describe_db_security_groups = MagicMock(return_value=mock_sg)
+        mgr.conn.meta.region_name = "blart-bling-1"
+        mgr.conn.list_tags_for_resource = MagicMock(return_value=list_tags)
+        mgr.conn.describe_db_snapshots = MagicMock(return_value=mock_db_snapshots)
+
+        result = mgr.process_backup()
+
+        self.assertEqual(mgr.conn.mock_calls, [
+            call.describe_db_instances(),
+            call.describe_db_security_groups(),
+            call.list_tags_for_resource(
+                ResourceName="arn:aws:rds:blart-bling-1:0:db:db-id1234"),
+            call.list_tags_for_resource(
+                ResourceName="arn:aws:rds:blart-bling-1:0:db:db-id1234"),
+            call.create_db_snapshot(DBInstanceIdentifier='db-id1234',
+                                    DBSnapshotIdentifier=ANY,
+                                    Tags=[{'Value': 'True', 'Key': 'Snapshot'}]),
+            call.describe_db_snapshots(DBInstanceIdentifier='db-id1234', SnapshotType='manual'),
+        ])
+
+        self.assertEqual({'total_errors': 0,
+                          'total_creates': 1,
+                          'total_deletes': 0,
+                          'total_resources': 1},
+                         result)
+
+    def test_process_backup_single_cluster_instance(self):
+
+        mgr = RDSBackupManager(rds_region_name="ap-southeast-1",
+                               period="day",
+                               tag_name="Snapshot",
+                               tag_value="True",
+                               date_suffix="dd",
+                               keep_count=2)
+
+        instance = {'DBInstanceIdentifier': "db-id1234", "DBClusterIdentifier": "cluster-5678"}
+        list_tags = {"TagList": [{"Key": "Snapshot", "Value": "True"}]}
+
+        mock_sg = MagicMock()
+        mock_db_snapshots = {'DBSnapshots': []}
+
+        mgr.conn = MagicMock()
+        mgr.conn.describe_db_instances = MagicMock(return_value={"DBInstances": [instance]})
+        mgr.conn.describe_db_security_groups = MagicMock(return_value=mock_sg)
+        mgr.conn.meta.region_name = "blart-bling-1"
+        mgr.conn.list_tags_for_resource = MagicMock(return_value=list_tags)
+        mgr.conn.describe_db_cluster_snapshots = MagicMock(return_value=mock_db_snapshots)
+
+        result = mgr.process_backup()
+
+        self.assertEqual(mgr.conn.mock_calls, [
+            call.describe_db_instances(),
+            call.describe_db_security_groups(),
+            call.list_tags_for_resource(
+                ResourceName="arn:aws:rds:blart-bling-1:0:db:db-id1234"),
+            call.list_tags_for_resource(
+                ResourceName="arn:aws:rds:blart-bling-1:0:db:db-id1234"),
+            call.create_db_cluster_snapshot(DBClusterIdentifier='cluster-5678',
+                                            DBClusterSnapshotIdentifier=ANY,
+                                            Tags=[{'Value': 'True', 'Key': 'Snapshot'}]),
+            call.describe_db_cluster_snapshots(DBClusterIdentifier='cluster-5678', SnapshotType='manual'),
+        ])
+
+        self.assertEqual({'total_errors': 0,
+                          'total_creates': 1,
+                          'total_deletes': 0,
+                          'total_resources': 1},
+                         result)
 
     def test_snapshot_resource_for_standard(self):
 
@@ -95,7 +205,7 @@ class RDSBackupManagerTest(unittest.TestCase):
         mgr.snapshot_resource(resource, description, tags)
 
         self.assertEqual(mgr.conn.mock_calls, [
-            call.create_db_cluster_snapshot(DBClusterIdentifier='db-1234',
+            call.create_db_cluster_snapshot(DBClusterIdentifier='cluster-5678',
                                             DBClusterSnapshotIdentifier=ANY,
                                             Tags=[{'Value': 'value2', 'Key': 'value1'}])
         ])
