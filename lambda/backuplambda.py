@@ -1,12 +1,13 @@
 from __future__ import print_function
 
-import boto3
 import json
 import logging
-import pytz
 import sys
 import traceback
 from datetime import datetime
+
+import boto3
+import pytz
 
 
 class BaseBackupManager(object):
@@ -310,6 +311,11 @@ class RDSBackupManager(BaseBackupManager):
 
         for db_instance in all_instances:
             if self.db_has_tag(db_instance):
+                # prevent multiple cluster backup
+                if 'DBClusterIdentifier' in db_instance:
+                    if not any(d.get('DBClusterIdentifier', None) == db_instance['DBClusterIdentifier'] for d in found):
+                        found.append(db_instance)
+                    continue
                 found.append(db_instance)
 
         print('Found %(count)s databases to manage' % {'count': len(found)})
@@ -351,7 +357,7 @@ class RDSBackupManager(BaseBackupManager):
         return resource.get("DBClusterIdentifier", "DBInstanceIdentifier")
 
     def resolve_snapshot_name(self, resource):
-        return resource.get('DBClusterSnapshotIdentifier','DBSnapshotIdentifier')
+        return resource.get('DBClusterSnapshotIdentifier', 'DBSnapshotIdentifier')
 
     def resolve_snapshot_time(self, resource):
         now = datetime.utcnow()
