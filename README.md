@@ -88,6 +88,8 @@ Control of which service is executed is identified by the suppling the region na
 
 *Note:* Currently the backup function only runs against a single region, you could easily add another copy of the function to run against an additional region.
 
+*Note:* For RDS cluster support just add `tag_name`, `tag_value` to one of the instance in the cluster
+
 Both of these services will use the same field for `tag_name`, `tag_value` and the `keep_count` fields, if you need them to differ then create another Event trigger with different parameters.
 
 
