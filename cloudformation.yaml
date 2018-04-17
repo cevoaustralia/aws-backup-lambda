@@ -90,8 +90,8 @@ Resources:
                     - "rds:DescribeDBSecurityGroups"
                     - "rds:CreateDBSnapshot"
                     - "rds:DeleteDBSnapshot"
-                    - "rds:DescribeDBClusterSnapshots",
-                    - "rds:CreateDBClusterSnapshot",
+                    - "rds:DescribeDBClusterSnapshots"
+                    - "rds:CreateDBClusterSnapshot"
                     - "rds:DeleteDBClusterSnapshot"
                 Resource: "*"
   SuccessSNSTopic:
