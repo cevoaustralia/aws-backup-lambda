@@ -354,10 +354,10 @@ class RDSBackupManager(BaseBackupManager):
             return snapshots['DBSnapshots']
 
     def resolve_backupable_id(self, resource):
-        return resource.get("DBClusterIdentifier", "DBInstanceIdentifier")
+        return resource.get("DBClusterIdentifier") or resource.get("DBInstanceIdentifier")
 
     def resolve_snapshot_name(self, resource):
-        return resource.get('DBClusterSnapshotIdentifier', 'DBSnapshotIdentifier')
+        return resource.get('DBClusterSnapshotIdentifier') or resource.get('DBSnapshotIdentifier')
 
     def resolve_snapshot_time(self, resource):
         now = datetime.utcnow()
