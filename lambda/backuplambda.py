@@ -276,7 +276,7 @@ class RDSBackupManager(BaseBackupManager):
         return self.period
 
     def get_resource_tags(self, resource):
-        resource_id = resource.get("DBClusterIdentifier") or resource.get("DBInstanceIdentifier")
+        resource_id = self.resolve_backupable_id(resource)
         resource_tags = {}
         if resource_id:
             arn = self.build_arn_for_id(resource_id)
