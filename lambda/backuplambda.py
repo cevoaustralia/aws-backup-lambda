@@ -276,7 +276,7 @@ class RDSBackupManager(BaseBackupManager):
         return self.period
 
     def get_resource_tags(self, resource):
-        resource_id = resource.get("DBInstanceIdentifier", "DBClusterIdentifier")
+        resource_id = self.resolve_backupable_id(resource)
         resource_tags = {}
         if resource_id:
             arn = self.build_arn_for_id(resource_id)
@@ -354,10 +354,10 @@ class RDSBackupManager(BaseBackupManager):
             return snapshots['DBSnapshots']
 
     def resolve_backupable_id(self, resource):
-        return resource.get("DBClusterIdentifier", "DBInstanceIdentifier")
+        return resource.get("DBClusterIdentifier") or resource.get("DBInstanceIdentifier")
 
     def resolve_snapshot_name(self, resource):
-        return resource.get('DBClusterSnapshotIdentifier', 'DBSnapshotIdentifier')
+        return resource.get('DBClusterSnapshotIdentifier') or resource.get('DBSnapshotIdentifier')
 
     def resolve_snapshot_time(self, resource):
         now = datetime.utcnow()
