@@ -109,6 +109,27 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       CodeUri: 'lambda'
       Events:
+        HourlyBackupEvent:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Input:
+              Fn::Join:
+              - ''
+              - - '{"period_label": "hour", "period_format": "%a%H-%M", "keep_count": 168,'
+                - '"arn": "'
+                - !If [EnableSuccessSNSTopic, !If [ CreateSuccessSNSTopic, Ref: SuccessSNSTopic, Ref: SuccessSNSTopicOption], '']
+                - '", '
+                - '"error_arn": "'
+                - !If [EnableErrorSNSTopic, !If [ CreateErrorSNSTopic, Ref: ErrorSNSTopic, Ref: ErrorSNSTopicOption], '']
+                - '", '
+                - '"ec2_region_name": "'
+                - Ref: AWS::Region
+                - '", '
+                - '"rds_region_name": "'
+                - Ref: AWS::Region
+                - '", '
+                - '"tag_name": "MakeSnapshot", "tag_value": "True" }'
         DailyBackupEvent:
           Type: Schedule
           Properties:
